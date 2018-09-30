@@ -28,7 +28,7 @@ public class BookBuyerAgent extends Agent {
 			System.out.println("Target book is "+targetBookTitle);
 
 			// Add a TickerBehaviour that schedules a request to seller agents every minute
-			addBehaviour(new TickerBehaviour(this, 3000) {
+			addBehaviour(new TickerBehaviour(this, 10000) {
 				protected void onTick() {
 					System.out.println("Trying to buy "+targetBookTitle);
 					// Update the list of seller agents

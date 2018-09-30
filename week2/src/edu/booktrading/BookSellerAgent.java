@@ -16,13 +16,16 @@ import java.util.*;
 public class BookSellerAgent extends Agent {
 	// The catalogue of books for sale (maps the title of a book to its price)
 	private Hashtable catalogue;
+	// Record of stock
+	private Hashtable stockList;
 	// The GUI by means of which the user can add books in the catalogue
 	private BookSellerGui myGui;
 
 	// Put agent initializations here
 	protected void setup() {
-		// Create the catalogue
+		// Create the catalogue and stock list
 		catalogue = new Hashtable();
+		stockList = new Hashtable();
 
 		// Create and show the GUI 
 		myGui = new BookSellerGui(this);
@@ -67,10 +70,11 @@ public class BookSellerAgent extends Agent {
 	/**
      This is invoked by the GUI when the user adds a new book for sale
 	 */
-	public void updateCatalogue(final String title, final int price) {
+	public void updateCatalogue(final String title, final int price, final int stock) {
 		addBehaviour(new OneShotBehaviour() {
 			public void action() {
 				catalogue.put(title, new Integer(price));
+				stockList.put(title, new Integer(stock));
 				System.out.println(title+" inserted into catalogue. Price = "+price);
 			}
 		} );
@@ -129,10 +133,17 @@ public class BookSellerAgent extends Agent {
 				String title = msg.getContent();
 				ACLMessage reply = msg.createReply();
 
-				Integer price = (Integer) catalogue.remove(title);
+				Integer price = (Integer) catalogue.get(title);
+//				Integer price = (Integer) catalogue.remove(title);
 				if (price != null) {
 					reply.setPerformative(ACLMessage.INFORM);
 					System.out.println(title+" sold to agent "+msg.getSender().getName());
+					stockList.put(title, (Integer) stockList.get(title) - 1);
+					if ((Integer) stockList.get(title) == 0) {
+						catalogue.remove(title);
+						stockList.remove(title);
+						System.out.println(title+" out of stock");
+					}
 				}
 				else {
 					// The requested book has been sold to another buyer in the meanwhile .

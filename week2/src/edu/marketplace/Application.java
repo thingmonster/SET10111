@@ -15,12 +15,16 @@ public class Application {
 			AgentController rma = myContainer.createNewAgent("rma", "jade.tools.rma.rma", null);
 			rma.start();
 			String[] books = {"Java"};
+			AgentController advertiser = myContainer.createNewAgent(
+					"Ted", BookAdvertiserAgent.class.getCanonicalName(), null
+				); 
 			AgentController buyer = myContainer.createNewAgent(
 					"Fred", BookBuyerAgent.class.getCanonicalName(), books
 				); 
 			AgentController seller = myContainer.createNewAgent(
 					"Tom", BookSellerAgent.class.getCanonicalName(),null
 				); 
+			advertiser.start(); 
 			buyer.start(); 
 			seller.start(); 
 		} catch (Exception e){

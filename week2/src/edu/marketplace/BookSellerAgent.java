@@ -69,12 +69,12 @@ public class BookSellerAgent extends Agent {
 			
 				System.out.println("Seller agent "+getAID().getName()+" submitting book.");
 				
-				ACLMessage cfp = new ACLMessage(ACLMessage.INFORM);
-				cfp.addReceiver(advertiserAgents[0]);
-				cfp.setContent("book");
-				cfp.setConversationId("book-for-sale");
-				cfp.setReplyWith("cfp"+System.currentTimeMillis()); 
-				myAgent.send(cfp);
+				ACLMessage submitBook = new ACLMessage(ACLMessage.INFORM);
+				submitBook.addReceiver(advertiserAgents[0]);
+				submitBook.setContent("book");
+				submitBook.setConversationId("book-for-sale");
+				submitBook.setReplyWith("submitBook"+System.currentTimeMillis()); 
+				myAgent.send(submitBook);
 				
 				step = 1;
 				break;
@@ -84,7 +84,14 @@ public class BookSellerAgent extends Agent {
 				if (reply != null) {
 					if (reply.getPerformative() == ACLMessage.CONFIRM) {	
 
-						System.out.println("Seller agent "+getAID().getName()+" received confirmation");
+						System.out.println("Seller agent "+getAID().getName()+" submitting price");						
+
+						ACLMessage submitPrice = new ACLMessage(ACLMessage.INFORM);
+						submitPrice.addReceiver(advertiserAgents[0]);
+						submitPrice.setContent("7");
+						submitPrice.setConversationId("book-for-sale");
+						submitPrice.setReplyWith("submitPrice"+System.currentTimeMillis()); 
+						myAgent.send(submitPrice);
 						
 						step = 2; 	
 					}					

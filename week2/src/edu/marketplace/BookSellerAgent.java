@@ -2,6 +2,9 @@ package edu.marketplace;
 
 import jade.core.Agent;
 
+import java.util.ArrayList;
+import java.util.Hashtable;
+
 import jade.core.AID;
 import jade.core.behaviours.*;
 import jade.lang.acl.ACLMessage;
@@ -14,10 +17,16 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 public class BookSellerAgent extends Agent {
 	
 	private AID[] advertiserAgents;
+	private BookSellerGui GUI;
+	private Hashtable<String, Float> catalogue = new Hashtable<String, Float>();
+	private ArrayList<String> pending = new ArrayList<String>();
 
 	protected void setup() {
 
 		System.out.println("Seller agent "+getAID().getName()+" is ready.");
+
+		GUI = new BookSellerGui(this);
+		GUI.showGui();
 		
 		TickerBehaviour searchDF = new TickerBehaviour(this, 3000) {
 			protected void onTick() {
@@ -38,12 +47,17 @@ public class BookSellerAgent extends Agent {
 							advertiserAgents[i] = result[i].getName();
 							System.out.println(advertiserAgents[i].getName());							
 						}
+
+						if (advertiserAgents != null && advertiserAgents.length > 0) {
+							if (pending.size() > 0) {
+								myAgent.addBehaviour(new RegisterBooks());
+							}
+						}
+						
 					}
+
 					catch (FIPAException fe) {
 						fe.printStackTrace();
-					}
-					if (advertiserAgents != null && advertiserAgents.length > 0) {
-						myAgent.addBehaviour(new RegisterBook());
 					}
 				}	
 				
@@ -58,12 +72,27 @@ public class BookSellerAgent extends Agent {
 		System.out.println("Seller agent "+getAID().getName()+" terminating.");
 	}
 	
-	private class RegisterBook extends Behaviour {
+	public void updateCatalogue(final String title, final float price) {
+
+		catalogue.put(title, price);
+		pending.add(title);
+		
+		if (advertiserAgents != null && advertiserAgents.length > 0) {
+			this.addBehaviour(new RegisterBooks());
+		}
+		
+		addBehaviour(new OneShotBehaviour() {
+			public void action() {
+				System.out.println(title+" inserted into catalogue. Price = "+price);
+			}
+		} );
+	}
+	
+	private class RegisterBooks extends Behaviour {
 		
 		private MessageTemplate messageTemplate;
 		private int step = 0;
-		private String book = "Java";
-		private String price = "7";
+		private String title;
 
 		public void action() {
 			switch (step) {
@@ -71,10 +100,12 @@ public class BookSellerAgent extends Agent {
 			
 				System.out.println("Seller agent "+getAID().getName()+" submitting book.");
 				
+				title = (String) pending.get(pending.size() - 1);
+				
 				ACLMessage submitBook = new ACLMessage(ACLMessage.INFORM);
 				submitBook.addReceiver(advertiserAgents[0]);
-				submitBook.setContent(book);
-				submitBook.setConversationId(book);
+				submitBook.setContent(title);
+				submitBook.setConversationId(title);
 				submitBook.setReplyWith("submitBook"+System.currentTimeMillis()); 
 				myAgent.send(submitBook);
 				
@@ -88,14 +119,22 @@ public class BookSellerAgent extends Agent {
 
 						System.out.println("Seller agent "+getAID().getName()+" submitting price");						
 
+						title = (String) pending.get(pending.size() - 1);
+						float price = (float) catalogue.get(title);
+						
 						ACLMessage submitPrice = new ACLMessage(ACLMessage.INFORM);
 						submitPrice.addReceiver(advertiserAgents[0]);
-						submitPrice.setContent(price);
-						submitPrice.setConversationId(book);
+						submitPrice.setContent(Float.toString(price));
+						submitPrice.setConversationId(title);
 						submitPrice.setReplyWith("submitPrice"+System.currentTimeMillis()); 
 						myAgent.send(submitPrice);
 						
-						step = 2; 	
+						pending.remove(pending.size() - 1);
+						if (pending.size() > 0) {
+							step = 0;
+						} else {
+							step = 2;
+						}
 					}					
 				} else {
 					block();

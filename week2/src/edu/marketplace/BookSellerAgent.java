@@ -62,6 +62,8 @@ public class BookSellerAgent extends Agent {
 		
 		private MessageTemplate messageTemplate;
 		private int step = 0;
+		private String book = "Java";
+		private String price = "7";
 
 		public void action() {
 			switch (step) {
@@ -71,8 +73,8 @@ public class BookSellerAgent extends Agent {
 				
 				ACLMessage submitBook = new ACLMessage(ACLMessage.INFORM);
 				submitBook.addReceiver(advertiserAgents[0]);
-				submitBook.setContent("book");
-				submitBook.setConversationId("book-for-sale");
+				submitBook.setContent(book);
+				submitBook.setConversationId(book);
 				submitBook.setReplyWith("submitBook"+System.currentTimeMillis()); 
 				myAgent.send(submitBook);
 				
@@ -88,8 +90,8 @@ public class BookSellerAgent extends Agent {
 
 						ACLMessage submitPrice = new ACLMessage(ACLMessage.INFORM);
 						submitPrice.addReceiver(advertiserAgents[0]);
-						submitPrice.setContent("7");
-						submitPrice.setConversationId("book-for-sale");
+						submitPrice.setContent(price);
+						submitPrice.setConversationId(book);
 						submitPrice.setReplyWith("submitPrice"+System.currentTimeMillis()); 
 						myAgent.send(submitPrice);
 						

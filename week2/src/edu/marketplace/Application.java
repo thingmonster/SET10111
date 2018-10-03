@@ -21,12 +21,16 @@ public class Application {
 			AgentController buyer = myContainer.createNewAgent(
 					"Fred", BookBuyerAgent.class.getCanonicalName(), books
 				); 
-			AgentController seller = myContainer.createNewAgent(
+			AgentController seller1 = myContainer.createNewAgent(
 					"Tom", BookSellerAgent.class.getCanonicalName(),null
+				); 
+			AgentController seller2 = myContainer.createNewAgent(
+					"Thom", BookSellerAgent.class.getCanonicalName(),null
 				); 
 			advertiser.start(); 
 			buyer.start(); 
-			seller.start(); 
+			seller1.start(); 
+			seller2.start();
 		} catch (Exception e){
 			System.out.println("Exception starting agent: " + e.toString());
 		}

@@ -59,22 +59,48 @@ public class BookSellerAgent extends Agent {
 	}
 	
 	private class RegisterBook extends Behaviour {
+		
+		private MessageTemplate messageTemplate;
+		private int step = 0;
 
 		public void action() {
+			switch (step) {
+			case 0:
 			
-			System.out.println("Seller agent "+getAID().getName()+" submitting book.");
-			
-			ACLMessage cfp = new ACLMessage(ACLMessage.INFORM);
-			cfp.addReceiver(advertiserAgents[0]);
-			cfp.setContent("book");
-			cfp.setConversationId("book-for-sale");
-			cfp.setReplyWith("cfp"+System.currentTimeMillis()); 
-			myAgent.send(cfp);
+				System.out.println("Seller agent "+getAID().getName()+" submitting book.");
+				
+				ACLMessage cfp = new ACLMessage(ACLMessage.INFORM);
+				cfp.addReceiver(advertiserAgents[0]);
+				cfp.setContent("book");
+				cfp.setConversationId("book-for-sale");
+				cfp.setReplyWith("cfp"+System.currentTimeMillis()); 
+				myAgent.send(cfp);
+				
+				step = 1;
+				break;
+
+			case 1:				
+				ACLMessage reply = myAgent.receive(messageTemplate);
+				if (reply != null) {
+					if (reply.getPerformative() == ACLMessage.CONFIRM) {	
+
+						System.out.println("Seller agent "+getAID().getName()+" received confirmation");
+						
+						step = 2; 	
+					}					
+				} else {
+					block();
+				}
+				break;
+			}
 			
 		}
 
 		public boolean done() {
-			return true;
+			if (step == 2) {
+				System.out.println("Seller agent "+getAID().getName()+" finished");
+			}
+			return (step == 2);
 		}
 
 			

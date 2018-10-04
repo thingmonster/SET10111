@@ -16,13 +16,17 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 public class BookBuyerAgent extends Agent {
 
+	private BookBuyerGui GUI;
 	private AID[] advertiserAgents;
 	private ArrayList<String> pending = new ArrayList<String>();
-	private String title = "book";
-	private float budget = 9;
+	private String title;
+	private float budget;
 	
 	protected void setup() {		
 		System.out.println("Buyer agent "+getAID().getName()+" is ready.");
+
+		GUI = new BookBuyerGui(this);
+		GUI.showGui();
 
 		TickerBehaviour searchDF = new TickerBehaviour(this, 3000) {
 			protected void onTick() {
@@ -45,7 +49,7 @@ public class BookBuyerAgent extends Agent {
 						}
 
 						if (advertiserAgents != null && advertiserAgents.length > 0) {
-							if (title.length() > 0) {
+							if (title != null) {
 								myAgent.addBehaviour(new BuyBook());
 							}
 						}
@@ -68,7 +72,17 @@ public class BookBuyerAgent extends Agent {
 	protected void takeDown() {
 		System.out.println("Buyer agent "+getAID().getName()+" terminating.");
 	}
+
+	public void bookRequested(final String t, final Float b) {
+
+		title = t;
+		budget = b;
+		this.addBehaviour(new BuyBook());
+		
+		
+	}
 	
+
 	private class BuyBook extends Behaviour {
 		
 		private int step = 0;
@@ -77,11 +91,15 @@ public class BookBuyerAgent extends Agent {
 		
 		public void action() {
 			
+			if (title == null) {
+				step = 4;
+			}
+			
 			switch (step) {
 			case 0:
 				
 				// send title to advertiser
-				System.out.println("Buyer looking for book");
+				System.out.println("Buyer looking for "+title);
 				ACLMessage queryBook = new ACLMessage(ACLMessage.CFP);
 				queryBook.addReceiver(advertiserAgents[0]);
 				queryBook.setContent(title);
@@ -139,12 +157,13 @@ public class BookBuyerAgent extends Agent {
 						
 						// advertiser does not have this book
 						System.out.println("Buyer refused");
-
+						
 						// try again in three seconds
-						myAgent.addBehaviour(new WakerBehaviour(myAgent, 3000) {
+						myAgent.addBehaviour(new WakerBehaviour(myAgent, 6000) {
+							
 							protected void handleElapsedTimeout() {
 								System.out.println("Try again");
-								myAgent.addBehaviour(new BuyBook());
+								myAgent.addBehaviour(new BuyBook());								
 							}
 						});
 						step = 4;
@@ -165,6 +184,8 @@ public class BookBuyerAgent extends Agent {
 					if (msg.getPerformative() == ACLMessage.CONFIRM) {
 						
 						System.out.println("purchase confirmed");
+						title = null;
+						budget = 0;
 						step = 4;
 						
 					}

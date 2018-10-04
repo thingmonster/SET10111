@@ -234,7 +234,7 @@ public class BookAdvertiserAgent extends Agent {
 			
 
 		}
-	}  // End of inner class BookSubmissionServer
+	}  // End of inner class BookRequestServer
 
 	private class BookRemovalServer extends CyclicBehaviour {
 
@@ -263,6 +263,8 @@ public class BookAdvertiserAgent extends Agent {
 					System.out.println("directory now looks like this:");
 					System.out.println(directory.toString());
 				}
+			} else {
+				block();
 			}
 		}
 		

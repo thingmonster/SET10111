@@ -17,10 +17,14 @@ import jade.lang.acl.MessageTemplate;
 public class BookAdvertiserAgent extends Agent {
 	
 	private Hashtable<String, Hashtable<AID, Float>> directory;
+	private BookAdvertiserGui GUI;
 	
 	protected void setup() {	
 		
 		System.out.println("Advertiser agent "+getAID().getName()+" is ready.");
+
+		GUI = new BookAdvertiserGui(this);
+		GUI.showGui();
 		
 		directory = new Hashtable<String, Hashtable<AID, Float>>();
 		
@@ -86,6 +90,9 @@ public class BookAdvertiserAgent extends Agent {
 							directory.put(title, new Hashtable<AID, Float>());
 						}						
 						((Hashtable<AID, Float>) directory.get(title)).put(seller, price);	
+						
+						GUI.addToGui(title+": £"+price);
+						
 				    	System.out.println("price received, sending confirmation");					
 						reply.setPerformative(ACLMessage.CONFIRM);				
 						
@@ -259,7 +266,9 @@ public class BookAdvertiserAgent extends Agent {
 				
 				if (validRequest) {
 					System.out.println("removing "+ title +" sold buy " +sender.getName());
+					Float price = directory.get(title).get(sender);
 					directory.get(title).remove(sender);
+					GUI.removeFromGui(title+": £"+price);
 					System.out.println("directory now looks like this:");
 					System.out.println(directory.toString());
 				}

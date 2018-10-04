@@ -80,10 +80,10 @@ public class BookAdvertiserAgent extends Agent {
 				    	
 				    	// save title and price to directory
 				    	String title = (String) ((Hashtable) conversations.get(seller)).get(conversationID);
-						if (!directory.containsKey(seller)) {
-							directory.put(seller, new Hashtable());
+						if (!directory.containsKey(title)) {
+							directory.put(title, new Hashtable());
 						}						
-						((Hashtable) directory.get(seller)).put(title, price);						
+						((Hashtable) directory.get(title)).put(seller, price);						
 						reply.setPerformative(ACLMessage.CONFIRM);				
 						
 				    } else {	
@@ -170,16 +170,16 @@ public class BookAdvertiserAgent extends Agent {
 					AID candidate = null;
 					try {
 						float budget = Float.parseFloat(submission);
-				        Set<AID> sellers = directory.keySet();
-				        for(AID seller: sellers){
-				        	System.out.println("seller: "+seller);
-				        	Set<String> books = ((Hashtable) directory.get(seller)).keySet();
-					        for(String book: books){
-					        	System.out.println("book: "+book);
-					        	float price = (float) ((Hashtable) directory.get(seller)).get(book);
+				        Set<String> titles = directory.keySet();
+				        for(String title: titles){
+				        	System.out.println("title: "+title);
+				        	Set<AID> sellers = ((Hashtable) directory.get(title)).keySet();
+					        for(AID seller: sellers){
+					        	System.out.println("seller: "+seller);
+					        	float price = (float) ((Hashtable) directory.get(title)).get(seller);
 					        	if (price < budget) {
 					        		candidate = seller;
-					        		System.out.println("Price of "+book+" is: "+price);
+					        		System.out.println("Price of "+title+" is: "+price);
 					        		break;
 					        	}
 					        }

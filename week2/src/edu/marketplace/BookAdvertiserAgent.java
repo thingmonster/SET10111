@@ -38,6 +38,7 @@ public class BookAdvertiserAgent extends Agent {
 		}
 		this.addBehaviour(new BookSubmissionServer());
 		this.addBehaviour(new BookRequestServer());
+		this.addBehaviour(new BookRemovalServer());
 	}
 
 	protected void takeDown() {
@@ -234,6 +235,38 @@ public class BookAdvertiserAgent extends Agent {
 
 		}
 	}  // End of inner class BookSubmissionServer
+
+	private class BookRemovalServer extends CyclicBehaviour {
+
+		MessageTemplate messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.CANCEL);
+		ACLMessage msg;
+		
+		public void action() {
+
+			msg = myAgent.receive(messageTemplate);
+			
+			if (msg != null) {
+				
+				String title = msg.getContent();
+				AID sender = msg.getSender();
+				boolean validRequest = false;
+				
+				if (directory.containsKey(title)) {
+					if (directory.get(title).containsKey(sender)) {
+						validRequest = true;
+					}
+				}
+				
+				if (validRequest) {
+					System.out.println("removing "+ title +" sold buy " +sender.getName());
+					directory.get(title).remove(sender);
+					System.out.println("directory now looks like this:");
+					System.out.println(directory.toString());
+				}
+			}
+		}
+		
+	}
 
 
 }

@@ -160,7 +160,7 @@ public class BookSellerAgent extends Agent {
 			msg = myAgent.receive(messageTemplate);
 			
 			if (msg != null) {
-				
+
 				String message = msg.getContent();
 				System.out.println("request received for " + message);
 				ACLMessage reply = msg.createReply();
@@ -168,6 +168,13 @@ public class BookSellerAgent extends Agent {
 				reply.setContent("");					
 				myAgent.send(reply);
 				
+				ACLMessage cfp = new ACLMessage(ACLMessage.CANCEL);
+				cfp.addReceiver(advertiserAgents[0]);
+				cfp.setContent(message);
+				cfp.setConversationId("");
+				cfp.setReplyWith("cfp"+System.currentTimeMillis()); // Unique value
+				myAgent.send(cfp);
+								
 			} else {
 				block();
 			}

@@ -17,6 +17,8 @@ public class BookBuyerAgent extends Agent {
 
 	private AID[] advertiserAgents;
 	private ArrayList<String> pending = new ArrayList<String>();
+	private String title = "book";
+	private float budget = 9;
 	
 	protected void setup() {		
 		System.out.println("Buyer agent "+getAID().getName()+" is ready.");
@@ -42,9 +44,9 @@ public class BookBuyerAgent extends Agent {
 						}
 
 						if (advertiserAgents != null && advertiserAgents.length > 0) {
-//							if (pending.size() > 0) {
-								myAgent.addBehaviour(new BuyBooks());
-//							}
+							if (title.length() > 0) {
+								myAgent.addBehaviour(new BuyBook());
+							}
 						}
 						
 					}
@@ -66,43 +68,63 @@ public class BookBuyerAgent extends Agent {
 		System.out.println("Buyer agent "+getAID().getName()+" terminating.");
 	}
 	
-	private class BuyBooks extends Behaviour {
+	private class BuyBook extends Behaviour {
 		
 		private int step = 0;
+		MessageTemplate replyTemplate;
 		
 		public void action() {
-			System.out.println("buyer action");
+			
 			switch (step) {
 			case 0:
 				
 				System.out.println("Buyer sending query");
 				ACLMessage queryBook = new ACLMessage(ACLMessage.CFP);
 				queryBook.addReceiver(advertiserAgents[0]);
-				queryBook.setContent("book");
-				queryBook.setConversationId("book");
+				queryBook.setContent(title);
+				queryBook.setConversationId(title);
 				queryBook.setReplyWith("submitBook"+System.currentTimeMillis()); 
 				myAgent.send(queryBook);
 
 				ACLMessage queryBudget = new ACLMessage(ACLMessage.CFP);
 				queryBudget.addReceiver(advertiserAgents[0]);
-				queryBudget.setContent("5");
-				queryBudget.setConversationId("book");
+				queryBudget.setContent(Float.toString(budget));
+				queryBudget.setConversationId(title);
 				queryBudget.setReplyWith("submitBook"+System.currentTimeMillis()); 
 				myAgent.send(queryBudget);
+
+				replyTemplate = MessageTemplate.and(MessageTemplate.MatchConversationId(title),
+						MessageTemplate.MatchInReplyTo(queryBudget.getReplyWith()));
 				
 				step = 1;
 				
 				break;
 			case 1:
-				MessageTemplate messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.CONFIRM);
-				ACLMessage msg = myAgent.receive(messageTemplate);
 				
+				ACLMessage msg = myAgent.receive(replyTemplate);
 				if (msg != null) {
-					step = 2;
-					
+
+					if (msg.getPerformative() == ACLMessage.INFORM) {
+						System.out.println("Buyer informed");
+						step = 4;
+					} else if (msg.getPerformative() == ACLMessage.REFUSE) {
+						System.out.println("Buyer refused");
+
+						myAgent.addBehaviour(new WakerBehaviour(myAgent, 3000) {
+							protected void handleElapsedTimeout() {
+								System.out.println("Try again");
+								myAgent.addBehaviour(new BuyBook());
+							}
+						});
+						step = 4;
+					} else {
+
+						System.out.println("something else");
+					}
 				} else {
 					block();
 				}
+				
 				break;
 					
 			}
@@ -110,7 +132,7 @@ public class BookBuyerAgent extends Agent {
 		}
 		
 		public boolean done() {
-			return step == 2;
+			return step == 4;
 		}
 	}
 }

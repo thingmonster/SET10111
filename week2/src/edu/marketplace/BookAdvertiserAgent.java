@@ -1,5 +1,6 @@
 package edu.marketplace;
 
+import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Set;
 
@@ -15,13 +16,13 @@ import jade.lang.acl.MessageTemplate;
 
 public class BookAdvertiserAgent extends Agent {
 	
-	private Hashtable directory;
+	private Hashtable<String, Hashtable<AID, Float>> directory;
 	
 	protected void setup() {	
 		
 		System.out.println("Advertiser agent "+getAID().getName()+" is ready.");
 		
-		directory = new Hashtable();
+		directory = new Hashtable<String, Hashtable<AID, Float>>();
 		
 		DFAgentDescription dfd = new DFAgentDescription();
 		dfd.setName(getAID());
@@ -48,7 +49,7 @@ public class BookAdvertiserAgent extends Agent {
 		MessageTemplate messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
 		ACLMessage msg;
 		
-		Hashtable conversations = new Hashtable();
+		Hashtable<AID, Hashtable<String, String>> conversations = new Hashtable<AID, Hashtable<String, String>>();
 		
 		public void action() {
 
@@ -59,7 +60,7 @@ public class BookAdvertiserAgent extends Agent {
 				// get seller ID
 				AID seller = msg.getSender();
 				if (!conversations.containsKey(seller)) {
-					conversations.put(seller, new Hashtable());
+					conversations.put(seller, new Hashtable<String, String>());
 				}
 				
 				// get conversation ID
@@ -76,14 +77,14 @@ public class BookAdvertiserAgent extends Agent {
 //				    System.out.println("Advertiser agent "+getAID().getName()+" received price: "+submission);
 				    
 				    // check if this conversation has already been started
-				    if (((Hashtable) conversations.get(seller)).containsKey(conversationID)) {
+				    if (((Hashtable<String, String>) conversations.get(seller)).containsKey(conversationID)) {
 				    	
 				    	// save title and price to directory
-				    	String title = (String) ((Hashtable) conversations.get(seller)).get(conversationID);
+				    	String title = (String) ((Hashtable<String, String>) conversations.get(seller)).get(conversationID);
 						if (!directory.containsKey(title)) {
-							directory.put(title, new Hashtable());
+							directory.put(title, new Hashtable<AID, Float>());
 						}						
-						((Hashtable) directory.get(title)).put(seller, price);						
+						((Hashtable<AID, Float>) directory.get(title)).put(seller, price);						
 						reply.setPerformative(ACLMessage.CONFIRM);				
 						
 				    } else {	
@@ -102,7 +103,7 @@ public class BookAdvertiserAgent extends Agent {
 //				    System.out.println(conversations.toString());
 //				    System.out.println("");
 				    
-				    ((Hashtable) conversations.get(seller)).remove(conversationID);
+				    ((Hashtable<String, String>) conversations.get(seller)).remove(conversationID);
 
 //				    System.out.println("");
 //				    System.out.println("Advertiser conversations now looks like this:");
@@ -116,11 +117,11 @@ public class BookAdvertiserAgent extends Agent {
 					
 					// add title and conversation ID to conversations hash table
 					if (!conversations.containsKey(seller)) {
-						Hashtable books = new Hashtable();
+						Hashtable<String, String> books = new Hashtable<String, String>();
 						books.put(conversationID, submission);
 						conversations.put(seller, books);
 					} else { 
-						((Hashtable) conversations.get(seller)).put(conversationID, submission);
+						((Hashtable<String, String>) conversations.get(seller)).put(conversationID, submission);
 					}
 					
 					reply.setPerformative(ACLMessage.CONFIRM);
@@ -143,7 +144,7 @@ public class BookAdvertiserAgent extends Agent {
 
 	private class BookRequestServer extends CyclicBehaviour {
 		
-		private Hashtable conversations = new Hashtable();
+		private Hashtable<AID, Hashtable<String, String>> conversations = new Hashtable<AID, Hashtable<String, String>>();
 
 		MessageTemplate messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.CFP);
 		ACLMessage msg;
@@ -158,14 +159,12 @@ public class BookAdvertiserAgent extends Agent {
 				String conversationID = msg.getConversationId();
 				AID sender = msg.getSender();
 				
-				System.out.println("Received query about " + submission);
-				
 				if (!conversations.containsKey(sender)) {
-					conversations.put(sender, new Hashtable());
+					conversations.put(sender, new Hashtable<String, String>());
 				}
 				
-				if (!((Hashtable) conversations.get(sender)).containsKey(conversationID)) {
-					((Hashtable) conversations.get(sender)).put(conversationID, submission);
+				if (!((Hashtable<String, String>) conversations.get(sender)).containsKey(conversationID)) {
+					((Hashtable<String, String>) conversations.get(sender)).put(conversationID, submission);
 				} else {
 					AID candidate = null;
 					try {
@@ -173,13 +172,19 @@ public class BookAdvertiserAgent extends Agent {
 				        Set<String> titles = directory.keySet();
 				        for(String title: titles){
 				        	System.out.println("title: "+title);
-				        	Set<AID> sellers = ((Hashtable) directory.get(title)).keySet();
+				        	Set<AID> sellers = ((Hashtable<AID, Float>) directory.get(title)).keySet();
 					        for(AID seller: sellers){
 					        	System.out.println("seller: "+seller);
-					        	float price = (float) ((Hashtable) directory.get(title)).get(seller);
+					        	float price = (float) ((Hashtable<AID, Float>) directory.get(title)).get(seller);
 					        	if (price < budget) {
 					        		candidate = seller;
 					        		System.out.println("Price of "+title+" is: "+price);
+
+									ACLMessage reply = msg.createReply();
+									reply.setPerformative(ACLMessage.INFORM);
+									reply.setContentObject(seller);					
+									myAgent.send(reply);
+									
 					        		break;
 					        	}
 					        }
@@ -188,22 +193,28 @@ public class BookAdvertiserAgent extends Agent {
 
 							ACLMessage reply = msg.createReply();
 							reply.setPerformative(ACLMessage.REFUSE);
-							reply.setContent("");					
+							reply.setContent("no matches");					
 							myAgent.send(reply);
 							
 				        }
 					}
 					catch (NumberFormatException e) {
-					
-						// refuse
+
+						ACLMessage reply = msg.createReply();
+						reply.setPerformative(ACLMessage.REFUSE);
+						reply.setContent("no title to match price");					
+						myAgent.send(reply);
+
+					} catch (IOException e) {
+
+						ACLMessage reply = msg.createReply();
+						reply.setPerformative(ACLMessage.REFUSE);
+						reply.setContent("found a seller but can't sent it");					
+						myAgent.send(reply);
+
 					}
 				}
 				
-				
-				ACLMessage reply = msg.createReply();
-				reply.setPerformative(ACLMessage.CONFIRM);
-				reply.setContent("");					
-				myAgent.send(reply);
 				
 				
 			} else {

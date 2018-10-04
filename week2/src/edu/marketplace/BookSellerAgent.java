@@ -33,7 +33,7 @@ public class BookSellerAgent extends Agent {
 				
 				if (advertiserAgents == null || advertiserAgents.length == 0) {
 					
-					System.out.println("Seller searching for advertiser");
+//					System.out.println("Seller searching for advertiser");
 					
 					DFAgentDescription template = new DFAgentDescription();
 					ServiceDescription sd = new ServiceDescription();
@@ -41,11 +41,11 @@ public class BookSellerAgent extends Agent {
 					template.addServices(sd);
 					try {
 						DFAgentDescription[] result = DFService.search(myAgent, template); 
-						System.out.println("Found the following advertiser agents:");
+//						System.out.println("Found the following advertiser agents:");
 						advertiserAgents = new AID[result.length];
 						for (int i = 0; i < result.length; ++i) {
 							advertiserAgents[i] = result[i].getName();
-							System.out.println(advertiserAgents[i].getName());							
+//							System.out.println(advertiserAgents[i].getName());							
 						}
 
 						if (advertiserAgents != null && advertiserAgents.length > 0) {
@@ -83,7 +83,7 @@ public class BookSellerAgent extends Agent {
 		
 		addBehaviour(new OneShotBehaviour() {
 			public void action() {
-				System.out.println(title+" inserted into catalogue. Price = "+price);
+//				System.out.println(title+" inserted into catalogue. Price = "+price);
 			}
 		} );
 	}
@@ -98,7 +98,7 @@ public class BookSellerAgent extends Agent {
 			switch (step) {
 			case 0:
 			
-				System.out.println("Seller agent "+getAID().getName()+" submitting book.");
+//				System.out.println("Seller agent "+getAID().getName()+" submitting book.");
 				
 				title = (String) pending.get(pending.size() - 1);
 				
@@ -117,7 +117,7 @@ public class BookSellerAgent extends Agent {
 				if (reply != null) {
 					if (reply.getPerformative() == ACLMessage.CONFIRM) {	
 
-						System.out.println("Seller agent "+getAID().getName()+" submitting price");						
+//						System.out.println("Seller agent "+getAID().getName()+" submitting price");						
 
 						title = (String) pending.get(pending.size() - 1);
 						float price = (float) catalogue.get(title);
@@ -146,7 +146,7 @@ public class BookSellerAgent extends Agent {
 
 		public boolean done() {
 			if (step == 2) {
-				System.out.println("Seller agent "+getAID().getName()+" finished");
+//				System.out.println("Seller agent "+getAID().getName()+" finished");
 			}
 			return (step == 2);
 		}

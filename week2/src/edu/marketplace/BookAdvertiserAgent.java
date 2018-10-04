@@ -1,6 +1,7 @@
 package edu.marketplace;
 
 import java.util.Hashtable;
+import java.util.Set;
 
 import jade.core.AID;
 import jade.core.Agent;
@@ -35,6 +36,7 @@ public class BookAdvertiserAgent extends Agent {
 			fe.printStackTrace();
 		}
 		this.addBehaviour(new BookSubmissionServer());
+		this.addBehaviour(new BookRequestServer());
 	}
 
 	protected void takeDown() {
@@ -71,7 +73,7 @@ public class BookAdvertiserAgent extends Agent {
 					
 					// check if message is a number
 				    float price = Float.parseFloat(submission);
-				    System.out.println("Advertiser agent "+getAID().getName()+" received price: "+submission);
+//				    System.out.println("Advertiser agent "+getAID().getName()+" received price: "+submission);
 				    
 				    // check if this conversation has already been started
 				    if (((Hashtable) conversations.get(seller)).containsKey(conversationID)) {
@@ -95,22 +97,22 @@ public class BookAdvertiserAgent extends Agent {
 				    System.out.println(directory.toString());
 				    System.out.println("");
 
-				    System.out.println("");
-				    System.out.println("Advertiser conversations now looks like this:");
-				    System.out.println(conversations.toString());
-				    System.out.println("");
+//				    System.out.println("");
+//				    System.out.println("Advertiser conversations now looks like this:");
+//				    System.out.println(conversations.toString());
+//				    System.out.println("");
 				    
 				    ((Hashtable) conversations.get(seller)).remove(conversationID);
 
-				    System.out.println("");
-				    System.out.println("Advertiser conversations now looks like this:");
-				    System.out.println(conversations.toString());
-				    System.out.println("");
+//				    System.out.println("");
+//				    System.out.println("Advertiser conversations now looks like this:");
+//				    System.out.println(conversations.toString());
+//				    System.out.println("");
 				    
 				} catch (NumberFormatException e) {
 					
 					// if message isn't a number it must be a title
-					System.out.println("Advertiser agent "+getAID().getName()+" received book: "+submission);
+//					System.out.println("Advertiser agent "+getAID().getName()+" received book: "+submission);
 					
 					// add title and conversation ID to conversations hash table
 					if (!conversations.containsKey(seller)) {
@@ -138,4 +140,79 @@ public class BookAdvertiserAgent extends Agent {
 
 		}
 	}  // End of inner class BookSubmissionServer
+
+	private class BookRequestServer extends CyclicBehaviour {
+		
+		private Hashtable conversations = new Hashtable();
+
+		MessageTemplate messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.CFP);
+		ACLMessage msg;
+		
+		public void action() {
+
+			msg = myAgent.receive(messageTemplate);
+			
+			if (msg != null) {
+				
+				String submission = msg.getContent();
+				String conversationID = msg.getConversationId();
+				AID sender = msg.getSender();
+				
+				System.out.println("Received query about " + submission);
+				
+				if (!conversations.containsKey(sender)) {
+					conversations.put(sender, new Hashtable());
+				}
+				
+				if (!((Hashtable) conversations.get(sender)).containsKey(conversationID)) {
+					((Hashtable) conversations.get(sender)).put(conversationID, submission);
+				} else {
+					AID candidate = null;
+					try {
+						float budget = Float.parseFloat(submission);
+				        Set<AID> sellers = directory.keySet();
+				        for(AID seller: sellers){
+				        	System.out.println("seller: "+seller);
+				        	Set<String> books = ((Hashtable) directory.get(seller)).keySet();
+					        for(String book: books){
+					        	System.out.println("book: "+book);
+					        	float price = (float) ((Hashtable) directory.get(seller)).get(book);
+					        	if (price < budget) {
+					        		candidate = seller;
+					        		System.out.println("Price of "+book+" is: "+price);
+					        		break;
+					        	}
+					        }
+				        }
+				        if (candidate == null) {
+
+							ACLMessage reply = msg.createReply();
+							reply.setPerformative(ACLMessage.REFUSE);
+							reply.setContent("");					
+							myAgent.send(reply);
+							
+				        }
+					}
+					catch (NumberFormatException e) {
+					
+						// refuse
+					}
+				}
+				
+				
+				ACLMessage reply = msg.createReply();
+				reply.setPerformative(ACLMessage.CONFIRM);
+				reply.setContent("");					
+				myAgent.send(reply);
+				
+				
+			} else {
+				block();
+			}
+			
+
+		}
+	}  // End of inner class BookSubmissionServer
+
+
 }

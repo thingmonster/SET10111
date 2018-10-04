@@ -84,12 +84,14 @@ public class BookAdvertiserAgent extends Agent {
 						if (!directory.containsKey(title)) {
 							directory.put(title, new Hashtable<AID, Float>());
 						}						
-						((Hashtable<AID, Float>) directory.get(title)).put(seller, price);						
+						((Hashtable<AID, Float>) directory.get(title)).put(seller, price);	
+				    	System.out.println("price received, sending confirmation");					
 						reply.setPerformative(ACLMessage.CONFIRM);				
 						
 				    } else {	
 				    	
 				    	// or refuse to accept price because title has not been submitted
+				    	System.out.println("price received, title has not been submitted");
 						reply.setPerformative(ACLMessage.REFUSE);						
 				    }
 
@@ -123,7 +125,8 @@ public class BookAdvertiserAgent extends Agent {
 					} else { 
 						((Hashtable<String, String>) conversations.get(seller)).put(conversationID, submission);
 					}
-					
+
+			    	System.out.println("title received");
 					reply.setPerformative(ACLMessage.CONFIRM);
 					
 				}
@@ -164,22 +167,27 @@ public class BookAdvertiserAgent extends Agent {
 				}
 				
 				if (!((Hashtable<String, String>) conversations.get(sender)).containsKey(conversationID)) {
+					
+					// add this conversation and title to seller's entry in hashtable if necessary
 					((Hashtable<String, String>) conversations.get(sender)).put(conversationID, submission);
+					
 				} else {
-					AID candidate = null;
+					
 					try {
+						
+						// if message is a number search directory
 						float budget = Float.parseFloat(submission);
-				        Set<String> titles = directory.keySet();
-				        for(String title: titles){
-				        	System.out.println("title: "+title);
-				        	Set<AID> sellers = ((Hashtable<AID, Float>) directory.get(title)).keySet();
+						String title = conversations.get(sender).get(conversationID);
+
+						AID candidate = null;
+						
+						if (directory.containsKey(title)) {
+			        	Set<AID> sellers = ((Hashtable<AID, Float>) directory.get(title)).keySet();
 					        for(AID seller: sellers){
-					        	System.out.println("seller: "+seller);
 					        	float price = (float) ((Hashtable<AID, Float>) directory.get(title)).get(seller);
 					        	if (price < budget) {
+						        	System.out.println("book found, sending AID");
 					        		candidate = seller;
-					        		System.out.println("Price of "+title+" is: "+price);
-
 									ACLMessage reply = msg.createReply();
 									reply.setPerformative(ACLMessage.INFORM);
 									reply.setContentObject(seller);					
@@ -188,9 +196,11 @@ public class BookAdvertiserAgent extends Agent {
 					        		break;
 					        	}
 					        }
-				        }
+						}
+						
 				        if (candidate == null) {
 
+				        	System.out.println("book not found");
 							ACLMessage reply = msg.createReply();
 							reply.setPerformative(ACLMessage.REFUSE);
 							reply.setContent("no matches");					
@@ -200,13 +210,13 @@ public class BookAdvertiserAgent extends Agent {
 					}
 					catch (NumberFormatException e) {
 
-						ACLMessage reply = msg.createReply();
-						reply.setPerformative(ACLMessage.REFUSE);
-						reply.setContent("no title to match price");					
-						myAgent.send(reply);
+						// otherwise it must be a title so add to conversations
+			        	System.out.println("not number, must be title");
+						((Hashtable<String, String>) conversations.get(sender)).put(conversationID, submission);
 
 					} catch (IOException e) {
 
+			        	System.out.println("found a seller but can't send it");
 						ACLMessage reply = msg.createReply();
 						reply.setPerformative(ACLMessage.REFUSE);
 						reply.setContent("found a seller but can't sent it");					

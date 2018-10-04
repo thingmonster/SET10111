@@ -8,6 +8,7 @@ import jade.core.AID;
 import jade.core.behaviours.*;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import jade.lang.acl.UnreadableException;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -72,13 +73,15 @@ public class BookBuyerAgent extends Agent {
 		
 		private int step = 0;
 		MessageTemplate replyTemplate;
+		ACLMessage msg;
 		
 		public void action() {
 			
 			switch (step) {
 			case 0:
 				
-				System.out.println("Buyer sending query");
+				// send title to advertiser
+				System.out.println("Buyer looking for book");
 				ACLMessage queryBook = new ACLMessage(ACLMessage.CFP);
 				queryBook.addReceiver(advertiserAgents[0]);
 				queryBook.setContent(title);
@@ -86,6 +89,7 @@ public class BookBuyerAgent extends Agent {
 				queryBook.setReplyWith("submitBook"+System.currentTimeMillis()); 
 				myAgent.send(queryBook);
 
+				// send budget to advertiser
 				ACLMessage queryBudget = new ACLMessage(ACLMessage.CFP);
 				queryBudget.addReceiver(advertiserAgents[0]);
 				queryBudget.setContent(Float.toString(budget));
@@ -93,6 +97,7 @@ public class BookBuyerAgent extends Agent {
 				queryBudget.setReplyWith("submitBook"+System.currentTimeMillis()); 
 				myAgent.send(queryBudget);
 
+				// prepare reply template
 				replyTemplate = MessageTemplate.and(MessageTemplate.MatchConversationId(title),
 						MessageTemplate.MatchInReplyTo(queryBudget.getReplyWith()));
 				
@@ -101,15 +106,41 @@ public class BookBuyerAgent extends Agent {
 				break;
 			case 1:
 				
-				ACLMessage msg = myAgent.receive(replyTemplate);
+				msg = myAgent.receive(replyTemplate);
 				if (msg != null) {
-
 					if (msg.getPerformative() == ACLMessage.INFORM) {
+						
+						// advertiser has responded with seller AID
 						System.out.println("Buyer informed");
-						step = 4;
+						try {
+							AID seller = (AID) msg.getContentObject();
+							
+							// send request to seller
+							ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
+							cfp.addReceiver(seller);
+							cfp.setContent(title);
+							cfp.setConversationId(title);
+							cfp.setReplyWith("cfp"+System.currentTimeMillis());
+							myAgent.send(cfp);
+
+							// prepare reply template
+							replyTemplate = MessageTemplate.and(MessageTemplate.MatchConversationId(title),
+									MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
+							
+							step = 2;
+							
+							
+						} catch (UnreadableException e) {
+							System.out.println("Failed to load seller AID");
+							step = 4;
+						}
+						
 					} else if (msg.getPerformative() == ACLMessage.REFUSE) {
+						
+						// advertiser does not have this book
 						System.out.println("Buyer refused");
 
+						// try again in three seconds
 						myAgent.addBehaviour(new WakerBehaviour(myAgent, 3000) {
 							protected void handleElapsedTimeout() {
 								System.out.println("Try again");
@@ -119,14 +150,26 @@ public class BookBuyerAgent extends Agent {
 						step = 4;
 					} else {
 
-						System.out.println("something else");
+						System.out.println("reply not recognised");
 					}
 				} else {
 					block();
 				}
 				
 				break;
-					
+			case 2:
+				
+
+				msg = myAgent.receive(replyTemplate);
+				if (msg != null) {
+					if (msg.getPerformative() == ACLMessage.CONFIRM) {
+						
+						System.out.println("purchase confirmed");
+						step = 4;
+						
+					}
+				}
+				break;					
 			}
 			
 		}

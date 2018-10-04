@@ -49,6 +49,7 @@ public class BookSellerAgent extends Agent {
 						}
 
 						if (advertiserAgents != null && advertiserAgents.length > 0) {
+							addBehaviour(new BookRequestServer());
 							if (pending.size() > 0) {
 								myAgent.addBehaviour(new RegisterBooks());
 							}
@@ -81,11 +82,6 @@ public class BookSellerAgent extends Agent {
 			this.addBehaviour(new RegisterBooks());
 		}
 		
-		addBehaviour(new OneShotBehaviour() {
-			public void action() {
-//				System.out.println(title+" inserted into catalogue. Price = "+price);
-			}
-		} );
 	}
 	
 	private class RegisterBooks extends Behaviour {
@@ -154,4 +150,29 @@ public class BookSellerAgent extends Agent {
 			
 	}
 	
+	private class BookRequestServer extends CyclicBehaviour {
+		
+		MessageTemplate messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.CFP);
+		ACLMessage msg;
+		
+		public void action() {
+			
+			msg = myAgent.receive(messageTemplate);
+			
+			if (msg != null) {
+				
+				String message = msg.getContent();
+				System.out.println("request received for " + message);
+				ACLMessage reply = msg.createReply();
+				reply.setPerformative(ACLMessage.CONFIRM);		
+				reply.setContent("");					
+				myAgent.send(reply);
+				
+			} else {
+				block();
+			}
+			
+		}
+		
+	}
 }

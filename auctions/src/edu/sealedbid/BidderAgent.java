@@ -26,22 +26,31 @@ public class BidderAgent extends Agent {
 			shoppingList = (Hashtable<String, Float>) args[0];
 			System.out.println(shoppingList.toString());
 
-			DFAgentDescription template = new DFAgentDescription();
-			ServiceDescription sd = new ServiceDescription();
-			sd.setType("book-auction");
-			template.addServices(sd);
-			try {
-				DFAgentDescription[] result = DFService.search(this, template); 
-				if (result.length > 0) {
-					auctioneer = result[0].getName();
-					System.out.println("auctioneer found" + auctioneer.getName());
-					addBehaviour(new Register());
+			addBehaviour(new TickerBehaviour(this, 1000) {
+				
+				protected void onTick() {
+					
+					DFAgentDescription template = new DFAgentDescription();
+					ServiceDescription sd = new ServiceDescription();
+					sd.setType("book-auction");
+					template.addServices(sd);
+					try {
+						DFAgentDescription[] result = DFService.search(myAgent, template); 
+						if (result.length > 0) {
+							auctioneer = result[0].getName();
+							System.out.println("auctioneer found" + auctioneer.getName());
+							addBehaviour(new Register());
+							addBehaviour(new CFPServer());
+							addBehaviour(new TransactionServer());
+							removeBehaviour(this);
+						}
+					}
+					catch (FIPAException fe) {
+						fe.printStackTrace();
+					}
 				}
-			}
-			catch (FIPAException fe) {
-				fe.printStackTrace();
-			}
-
+				
+			});
 
 		}
 	}
@@ -67,6 +76,51 @@ public class BidderAgent extends Agent {
 			return true;
 		}
 	}
+
+	private class CFPServer extends CyclicBehaviour {
+		public void action() {
+			
+			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);
+			ACLMessage msg = myAgent.receive(mt);
+			if (msg != null) {
+
+				String message = msg.getContent();
+				
+				ACLMessage reply = msg.createReply();
+				if (shoppingList.containsKey(message)) {
+					reply.setPerformative(ACLMessage.PROPOSE);
+					reply.setContent(shoppingList.get(message).toString());
+				} else {
+					reply.setPerformative(ACLMessage.REFUSE);
+					reply.setContent("");
+				}
+				myAgent.send(reply);
+				
+				System.out.println(message);
+			}
+			else {
+				block();
+			}
+		}
+	}
+
+	private class TransactionServer extends CyclicBehaviour {
+		public void action() {
+
+			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
+			ACLMessage msg = myAgent.receive(mt);
+			if (msg != null) {
+
+				String title = msg.getContent();
+				shoppingList.remove(title);
+				System.out.println(myAgent.getLocalName() + " has bought " + title);
+			}
+			else {
+				block();
+			}
+		}
+	}
+	
 }
 	
 	

@@ -20,23 +20,29 @@ public class Application {
 			rma.start();
 
 			Hashtable<String, Float> books = new Hashtable<String, Float>();
-			books.put("CSS", (float) 4);
 			books.put("C", (float) 5);
+			books.put("CSS", (float) 4);
+			books.put("Java", (float) 4);
 
 			Hashtable<String, Float> catalogue = new Hashtable<String, Float>();
-			catalogue.put("Java", (float) 4);
 			catalogue.put("C", (float) 5);
+			catalogue.put("Java", (float) 4);
 
 			AgentController auctioneer = myContainer.createNewAgent(
 					"Alan", AuctioneerAgent.class.getCanonicalName(), new Object[] {catalogue}
 			); 
 
-			AgentController bidder = myContainer.createNewAgent(
+			AgentController bidder1 = myContainer.createNewAgent(
 					"Bob", BidderAgent.class.getCanonicalName(), new Object[] {books}
 			); 
 
+			AgentController bidder2 = myContainer.createNewAgent(
+					"Ben", BidderAgent.class.getCanonicalName(), new Object[] {books}
+			); 
+
 			auctioneer.start();
-			bidder.start();
+			bidder1.start();
+			bidder2.start();
 			
 			
 		} catch (Exception e){

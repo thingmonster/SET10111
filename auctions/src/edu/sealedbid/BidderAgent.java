@@ -18,45 +18,50 @@ public class BidderAgent extends Agent {
 	
 	private Hashtable<String, Float> shoppingList = new Hashtable<String, Float>();
 	private AID auctioneer;
+	private BidderGui gui;
 	
 	protected void setup() {
-		
-		Object[] args = getArguments();
-		if (args != null && args.length > 0) {
-			shoppingList = (Hashtable<String, Float>) args[0];
-			System.out.println(shoppingList.toString());
 
-			addBehaviour(new TickerBehaviour(this, 1000) {
+		gui = new BidderGui(this);
+		gui.showGui();
+
+		System.out.println(shoppingList.toString());
+
+		addBehaviour(new TickerBehaviour(this, 1000) {
+			
+			protected void onTick() {
 				
-				protected void onTick() {
-					
-					DFAgentDescription template = new DFAgentDescription();
-					ServiceDescription sd = new ServiceDescription();
-					sd.setType("book-auction");
-					template.addServices(sd);
-					try {
-						DFAgentDescription[] result = DFService.search(myAgent, template); 
-						if (result.length > 0) {
-							auctioneer = result[0].getName();
-							System.out.println("auctioneer found" + auctioneer.getName());
-							addBehaviour(new Register());
-							addBehaviour(new CFPServer());
-							addBehaviour(new TransactionServer());
-							removeBehaviour(this);
-						}
-					}
-					catch (FIPAException fe) {
-						fe.printStackTrace();
+				DFAgentDescription template = new DFAgentDescription();
+				ServiceDescription sd = new ServiceDescription();
+				sd.setType("book-auction");
+				template.addServices(sd);
+				try {
+					DFAgentDescription[] result = DFService.search(myAgent, template); 
+					if (result.length > 0) {
+						auctioneer = result[0].getName();
+						System.out.println("auctioneer found" + auctioneer.getName());
+						addBehaviour(new Register());
+						addBehaviour(new CFPServer());
+						addBehaviour(new TransactionServer());
+						removeBehaviour(this);
 					}
 				}
-				
-			});
+				catch (FIPAException fe) {
+					fe.printStackTrace();
+				}
+			}
+			
+		});
 
-		}
+	}
+	
+	protected void buyBook(String title, Float budget) {
+		shoppingList.put(title, budget);
 	}
 
 	protected void takeDown() {
-		
+
+		gui.dispose();
 		System.out.println("Bidder agent "+getAID().getName()+" terminating.");
 	}
 	

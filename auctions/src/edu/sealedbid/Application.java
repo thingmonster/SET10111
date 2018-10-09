@@ -33,11 +33,11 @@ public class Application {
 			); 
 
 			AgentController bidder1 = myContainer.createNewAgent(
-					"Bob", BidderAgent.class.getCanonicalName(), new Object[] {books}
+					"Bob", BidderAgent.class.getCanonicalName(), null
 			); 
 
 			AgentController bidder2 = myContainer.createNewAgent(
-					"Ben", BidderAgent.class.getCanonicalName(), new Object[] {books}
+					"Ben", BidderAgent.class.getCanonicalName(), null
 			); 
 
 			auctioneer.start();

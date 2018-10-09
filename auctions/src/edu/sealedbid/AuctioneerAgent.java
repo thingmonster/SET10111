@@ -13,6 +13,7 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 import java.util.*;
+
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -22,34 +23,36 @@ public class AuctioneerAgent extends Agent {
 
 	private Hashtable catalogue = new Hashtable();
 	private List<AID> bidders = new ArrayList();
+	private AuctioneerGui gui;
 	
 	protected void setup() {
 
-		Object[] args = getArguments();
-//		if (args != null && args.length > 0) {
-
-			DFAgentDescription dfd = new DFAgentDescription();
-			dfd.setName(getAID());
-			ServiceDescription sd = new ServiceDescription();
-			sd.setType("book-auction");
-			sd.setName("JADE-book-auction");
-			dfd.addServices(sd);
-			try {
-				DFService.register(this, dfd);
-				System.out.println("Auctioneer Registered");
-			}
-			catch (FIPAException fe) {
-				System.out.println("Registration failed");
-				fe.printStackTrace();
-			}
-			addBehaviour(new LoadCSV());
-			addBehaviour(new RegistrationServer());
-			addBehaviour(new Pause(this, 3000));
-//		}
-		
+		gui = new AuctioneerGui(this);
+		gui.showGui();
+	
+		DFAgentDescription dfd = new DFAgentDescription();
+		dfd.setName(getAID());
+		ServiceDescription sd = new ServiceDescription();
+		sd.setType("book-auction");
+		sd.setName("JADE-book-auction");
+		dfd.addServices(sd);
+		try {
+			DFService.register(this, dfd);
+			System.out.println("Auctioneer Registered");
+		}
+		catch (FIPAException fe) {
+			System.out.println("Registration failed");
+			fe.printStackTrace();
+		}
 
 	}
 
+	protected void start() {
+		addBehaviour(new LoadCSV());
+		addBehaviour(new RegistrationServer());
+		addBehaviour(new Pause(this, 3000));
+	}
+	
 	protected void takeDown() {
 		
 		try {
@@ -58,6 +61,8 @@ public class AuctioneerAgent extends Agent {
 		catch (FIPAException fe) {
 			fe.printStackTrace();
 		}
+
+		gui.dispose();
 		
 		System.out.println("Seller-agent "+getAID().getName()+" terminating.");
 	}

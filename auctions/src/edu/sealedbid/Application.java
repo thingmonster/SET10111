@@ -32,7 +32,7 @@ public class Application {
 			); 
 
 			AgentController bidder = myContainer.createNewAgent(
-					"Bob", AuctioneerAgent.class.getCanonicalName(), new Object[] {books}
+					"Bob", BidderAgent.class.getCanonicalName(), new Object[] {books}
 			); 
 
 			auctioneer.start();

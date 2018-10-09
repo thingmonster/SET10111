@@ -88,15 +88,17 @@ public class BidderAgent extends Agent {
 				
 				ACLMessage reply = msg.createReply();
 				if (shoppingList.containsKey(message)) {
+					System.out.println(myAgent.getLocalName() + " placed a bid on " + message);
 					reply.setPerformative(ACLMessage.PROPOSE);
 					reply.setContent(shoppingList.get(message).toString());
 				} else {
+					System.out.println(myAgent.getLocalName() + " has refused " + message);
 					reply.setPerformative(ACLMessage.REFUSE);
 					reply.setContent("");
 				}
 				myAgent.send(reply);
 				
-				System.out.println(message);
+				
 			}
 			else {
 				block();

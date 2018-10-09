@@ -13,18 +13,20 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 
 public class AuctioneerAgent extends Agent {
 
-	private Hashtable catalogue;
+	private Hashtable catalogue = new Hashtable();
 	private List<AID> bidders = new ArrayList();
 	
 	protected void setup() {
 
 		Object[] args = getArguments();
-		if (args != null && args.length > 0) {
-			catalogue = (Hashtable<String, Float>) args[0];
-			System.out.println(catalogue.toString());
+//		if (args != null && args.length > 0) {
 
 			DFAgentDescription dfd = new DFAgentDescription();
 			dfd.setName(getAID());
@@ -37,11 +39,13 @@ public class AuctioneerAgent extends Agent {
 				System.out.println("Auctioneer Registered");
 			}
 			catch (FIPAException fe) {
+				System.out.println("Registration failed");
 				fe.printStackTrace();
 			}
+			addBehaviour(new LoadCSV());
 			addBehaviour(new RegistrationServer());
 			addBehaviour(new Pause(this, 3000));
-		}
+//		}
 		
 
 	}
@@ -58,6 +62,46 @@ public class AuctioneerAgent extends Agent {
 		System.out.println("Seller-agent "+getAID().getName()+" terminating.");
 	}
 	
+	private class LoadCSV extends OneShotBehaviour {
+
+		// code from here:
+		// https://www.mkyong.com/java/how-to-read-and-parse-csv-file-in-java/
+		
+		public void action() {
+
+	        String csvFile = "src/edu/resources/catalogue.csv";
+	        BufferedReader br = null;
+	        String line = "";
+	        String cvsSplitBy = ",";
+
+	        try {
+
+	            br = new BufferedReader(new FileReader(csvFile));
+	            while ((line = br.readLine()) != null) {
+
+	                // use comma as separator
+	                String[] book = line.split(cvsSplitBy);
+	                catalogue.put(book[0], book[1]);
+
+	            }
+
+	        } catch (FileNotFoundException e) {
+	            e.printStackTrace();
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        } finally {
+	            if (br != null) {
+	                try {
+	                    br.close();
+	                } catch (IOException e) {
+	                    e.printStackTrace();
+	                }
+	            }
+	        }
+
+		}
+		
+	}
 
 	private class RegistrationServer extends CyclicBehaviour {
 		public void action() {
@@ -99,8 +143,6 @@ public class AuctioneerAgent extends Agent {
 		ACLMessage msg;
 		MessageTemplate mt;
 		
-		
-		@Override
 		public void action() {
 			switch(step) {
 			case 0:
@@ -168,17 +210,19 @@ public class AuctioneerAgent extends Agent {
 						accept.addReceiver(maxBidder);
 						accept.setContent(currentItem);
 		    			myAgent.send(accept);
-						
-						catalogue.remove(currentItem);
-						bids.clear();
-						
+
 					}
+
+					System.out.println("removing "+currentItem+" from catalogue\n");
+					catalogue.remove(currentItem);
+					bids.clear();						
 					
 					if (catalogue.isEmpty()) {
 						step = 2;
 					} else {
 						step = 0;
 					}
+
 				}
 				
 				break;
@@ -187,7 +231,12 @@ public class AuctioneerAgent extends Agent {
 	
 		@Override
 		public boolean done() {
+			
+			if (step == 2) {
+				myAgent.doDelete();
+			}
 			return (step == 2);
+			
 		}
 	}
 }

@@ -29,7 +29,7 @@ public class Application {
 			catalogue.put("Java", (float) 4);
 
 			AgentController auctioneer = myContainer.createNewAgent(
-					"Alan", AuctioneerAgent.class.getCanonicalName(), new Object[] {catalogue}
+					"Alan", AuctioneerAgent.class.getCanonicalName(), null
 			); 
 
 			AgentController bidder1 = myContainer.createNewAgent(

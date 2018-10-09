@@ -1,0 +1,46 @@
+package edu.sealedbid;
+
+import java.util.Hashtable;
+
+import jade.core.Profile; 
+import jade.core.ProfileImpl;
+import jade.wrapper.AgentController;
+import jade.wrapper.ContainerController;
+import jade.core.Runtime; 
+
+public class Application {
+	public static void main(String[] args) {
+		Profile myProfile = new ProfileImpl();
+		Runtime myRuntime = Runtime.instance(); 
+		ContainerController myContainer = myRuntime.createMainContainer(myProfile);
+		try {
+			
+			
+			AgentController rma = myContainer.createNewAgent("rma", "jade.tools.rma.rma", null);
+			rma.start();
+
+			Hashtable<String, Float> books = new Hashtable<String, Float>();
+			books.put("CSS", (float) 4);
+			books.put("C", (float) 5);
+
+			Hashtable<String, Float> catalogue = new Hashtable<String, Float>();
+			catalogue.put("Java", (float) 4);
+			catalogue.put("C", (float) 5);
+
+			AgentController auctioneer = myContainer.createNewAgent(
+					"Alan", AuctioneerAgent.class.getCanonicalName(), new Object[] {catalogue}
+			); 
+
+			AgentController bidder = myContainer.createNewAgent(
+					"Bob", AuctioneerAgent.class.getCanonicalName(), new Object[] {books}
+			); 
+
+			auctioneer.start();
+			bidder.start();
+			
+			
+		} catch (Exception e){
+			System.out.println("Exception starting agent: " + e.toString());
+		}
+	}   
+}

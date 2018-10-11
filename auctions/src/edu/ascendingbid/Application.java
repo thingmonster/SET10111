@@ -20,24 +20,24 @@ public class Application {
 			rma.start();
 
 			Hashtable<String, Float> books = new Hashtable<String, Float>();
-			books.put("C", (float) 5);
-			books.put("CSS", (float) 4);
-			books.put("Java", (float) 4);
+			books.put("Java", (float) 8);
+			books.put("C", (float) 8);
+			books.put("CSS", (float) 8);
 
-			Hashtable<String, Float> catalogue = new Hashtable<String, Float>();
-			catalogue.put("C", (float) 5);
-			catalogue.put("Java", (float) 4);
+			Hashtable<String, Float> books2 = new Hashtable<String, Float>();
+			books2.put("Java", (float) 9);
+			books2.put("CSS", (float) 7);
 
 			AgentController auctioneer = myContainer.createNewAgent(
 					"Alan", AuctioneerAgent.class.getCanonicalName(), null
 			); 
 
 			AgentController bidder1 = myContainer.createNewAgent(
-					"Bob", BidderAgent.class.getCanonicalName(), null
+					"Bob", BidderAgent.class.getCanonicalName(), new Object[] {books}
 			); 
 
 			AgentController bidder2 = myContainer.createNewAgent(
-					"Ben", BidderAgent.class.getCanonicalName(), null
+					"Ben", BidderAgent.class.getCanonicalName(), new Object[] {books2}
 			); 
 
 			auctioneer.start();

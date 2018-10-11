@@ -19,9 +19,15 @@ public class BidderAgent extends Agent {
 	private Hashtable<String, Float> shoppingList = new Hashtable<String, Float>();
 	private AID auctioneer;
 	private BidderGui gui;
+	private String currentItem;
 	
 	protected void setup() {
 
+		Object[] args = getArguments();
+		if (args != null && args.length > 0) {
+			shoppingList = (Hashtable<String, Float>) args[0];
+		}
+		
 		gui = new BidderGui(this);
 		gui.showGui();
 
@@ -41,8 +47,8 @@ public class BidderAgent extends Agent {
 						auctioneer = result[0].getName();
 						System.out.println("auctioneer found" + auctioneer.getName());
 						addBehaviour(new Register());
+						addBehaviour(new InformServer());
 						addBehaviour(new CFPServer());
-						addBehaviour(new TransactionServer());
 						removeBehaviour(this);
 					}
 				}
@@ -82,6 +88,24 @@ public class BidderAgent extends Agent {
 		}
 	}
 
+	private class InformServer extends CyclicBehaviour {
+		public void action() {
+			
+			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+			ACLMessage msg = myAgent.receive(mt);
+			if (msg != null) {
+				if (shoppingList.containsKey(msg.getContent())) {
+					currentItem = msg.getContent();
+				} else {
+					currentItem = null;
+				}
+			}
+			else {
+				block();
+			}
+		}
+	}
+
 	private class CFPServer extends CyclicBehaviour {
 		public void action() {
 			
@@ -89,21 +113,37 @@ public class BidderAgent extends Agent {
 			ACLMessage msg = myAgent.receive(mt);
 			if (msg != null) {
 
-				String message = msg.getContent();
+				Float price = Float.parseFloat(msg.getContent());
 				
-				ACLMessage reply = msg.createReply();
-				if (shoppingList.containsKey(message)) {
-					System.out.println(myAgent.getLocalName() + " placed a bid on " + message);
-					reply.setPerformative(ACLMessage.PROPOSE);
-					reply.setContent(shoppingList.get(message).toString());
+				if ((currentItem != null) && (shoppingList.containsKey(currentItem))) {
+						
+					Float bid = null;
+					String message = null;
+					
+					if (price < shoppingList.get(currentItem)) {
+						bid = price + 1;
+						if (bid > shoppingList.get(currentItem)) {
+							bid = shoppingList.get(currentItem);
+						}
+						if (bid > price) {
+							message = Float.toString(bid);
+						}
+					}
+					
+					if (message != null) {
+						
+						ACLMessage reply = msg.createReply();
+						System.out.println(myAgent.getLocalName() + " placed a bid on " + currentItem + " for £"+message);
+						reply.setPerformative(ACLMessage.PROPOSE);
+						reply.setContent(message);
+						reply.setConversationId(currentItem);
+						myAgent.send(reply);
+					} else {
+						currentItem = null;
+					}
 				} else {
-					System.out.println(myAgent.getLocalName() + " has refused " + message);
-					reply.setPerformative(ACLMessage.REFUSE);
-					reply.setContent("");
+					currentItem = null;
 				}
-				myAgent.send(reply);
-				
-				
 			}
 			else {
 				block();

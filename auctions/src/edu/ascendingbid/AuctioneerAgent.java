@@ -21,9 +21,12 @@ import java.io.IOException;
 
 public class AuctioneerAgent extends Agent {
 
-	private Hashtable catalogue = new Hashtable();
+	private Hashtable<String, Float> catalogue = new Hashtable();
 	private List<AID> bidders = new ArrayList();
 	private AuctioneerGui gui;
+	private String currentItem = null;
+	private Float currentPrice = null;
+	private Hashtable <AID, Float> bids = new Hashtable();
 	
 	protected void setup() {
 
@@ -50,7 +53,8 @@ public class AuctioneerAgent extends Agent {
 	protected void start() {
 		addBehaviour(new LoadCSV());
 		addBehaviour(new RegistrationServer());
-		addBehaviour(new Pause(this, 3000));
+		addBehaviour(new BidServer());
+		addBehaviour(new ChooseBook());
 	}
 	
 	protected void takeDown() {
@@ -86,7 +90,7 @@ public class AuctioneerAgent extends Agent {
 
 	                // use comma as separator
 	                String[] book = line.split(cvsSplitBy);
-	                catalogue.put(book[0], book[1]);
+	                catalogue.put(book[0], Float.parseFloat(book[1]));
 
 	            }
 
@@ -133,115 +137,162 @@ public class AuctioneerAgent extends Agent {
 
 		protected void handleElapsedTimeout() {
 			
-			addBehaviour(new Auction());
+			addBehaviour(new ChooseBook());
 			
 
         }
 		
 	}
 
-	private class Auction extends Behaviour {
-		
-		private int step = 0;
-		private Hashtable <AID, Float> bids = new Hashtable();
-		private String currentItem = null;
-		ACLMessage msg;
+	private class ChooseBook extends OneShotBehaviour {
+		public void action() {
+
+			Set<String> keys = catalogue.keySet();
+	        for(String key: keys){	        	    			
+    			currentItem = key;
+    			System.out.println("Auction Starting for "+currentItem);
+    			break;
+	        }
+	        
+	        if (currentItem != null) { 
+	        	addBehaviour(new Auction(myAgent, 10000));
+	        } else {
+	        	System.out.println("Auction Finished");
+	        	myAgent.doDelete();
+	        }
+	        	
+		}
+	}
+
+	private class BidServer extends CyclicBehaviour {
+
 		MessageTemplate mt;
+		ACLMessage msg;
 		
 		public void action() {
-			switch(step) {
-			case 0:
 
-				Set<String> keys = catalogue.keySet();
-		        for(String key: keys){
-		        	
-	    			System.out.println("Auction Starting");
-	    			
-	    			currentItem = key;
-
-					ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
-		        	for (int i = 0; i < bidders.size(); i++) {
-		        		cfp.addReceiver(bidders.get(i));
-		        	}
-		        	cfp.setContent(key);
-		        	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
-	    			myAgent.send(cfp);
-					
-	    			break;
-		        }
-		        
-		        step = 1;
-		        break;
+			mt = MessageTemplate.and(MessageTemplate.MatchConversationId(currentItem),
+					MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
 			
-			case 1:
-				
-				mt = MessageTemplate.MatchPerformative(ACLMessage.PROPOSE);
-				msg = myAgent.receive(mt);
-				if (msg != null) {
-					
-					Float bid = Float.parseFloat(msg.getContent());
-					bids.put(msg.getSender(), bid);
+			msg = myAgent.receive(mt);
+			if (msg != null) {
 
-				}
-				else {
-				
-					mt = MessageTemplate.MatchPerformative(ACLMessage.REFUSE);
-					msg = myAgent.receive(mt);
-					if (msg != null) {
-						
-						bids.put(msg.getSender(), (float) 0);
-					} 
-					else {
-						
-						block();
-					}					
-				}
-				
-				if (bids.size() == bidders.size()) {
-					
-					Float max = (float) 0; 
-					AID maxBidder = null;
-					Set<AID> b = bids.keySet();
-			        for(AID bidder: b) {
-			        	if (bids.get(bidder) > max) {
-			        		max = bids.get(bidder);
-			        		maxBidder = bidder;
-			        	}
-			        }
-			        
-					if (max > 0) {
+				System.out.println("Bid received from " + msg.getSender().getLocalName());
+				Float bid = Float.parseFloat(msg.getContent());
+				bids.put(msg.getSender(), bid);
 
-						ACLMessage accept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
-						accept.addReceiver(maxBidder);
-						accept.setContent(currentItem);
-		    			myAgent.send(accept);
-
-					}
-
-					System.out.println("removing "+currentItem+" from catalogue\n");
-					catalogue.remove(currentItem);
-					bids.clear();						
-					
-					if (catalogue.isEmpty()) {
-						step = 2;
-					} else {
-						step = 0;
-					}
-
-				}
-				
-				break;
+			} else {
+				block();
 			}
 		}
+		
+	}
 	
-		@Override
-		public boolean done() {
+	private class Auction extends TickerBehaviour {
+
+		ACLMessage msg;
+		AID leader; 
+		
+		public Auction(Agent a, long period) {
+			super(a, period);
+			inform();
+			solicit();
+		}
+		
+		private void inform() {
 			
-			if (step == 2) {
-				myAgent.doDelete();
+			leader = null;
+			bids.clear();
+			
+			ACLMessage inform = new ACLMessage(ACLMessage.INFORM);
+        	for (int i = 0; i < bidders.size(); i++) {
+        		inform.addReceiver(bidders.get(i));
+        	}
+        	inform.setContent(currentItem);
+        	inform.setConversationId(currentItem);
+        	inform.setReplyWith("request"+System.currentTimeMillis()); // Unique value
+			myAgent.send(inform);
+		}
+
+		private void solicit() {
+
+			ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
+        	for (int i = 0; i < bidders.size(); i++) {
+        		cfp.addReceiver(bidders.get(i));
+        	}
+        	cfp.setContent(Float.toString(catalogue.get(currentItem)));
+        	cfp.setConversationId(currentItem);
+        	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
+			myAgent.send(cfp);
+		}
+				
+		public void onTick() {
+					
+			Float max = (float) 0; 
+			AID maxBidder = null;
+			Set<AID> b = bids.keySet();
+	        for(AID bidder: b) {
+	        	if (bids.get(bidder) > max) {
+	        		max = bids.get(bidder);
+	        		maxBidder = bidder;
+	        	}
+	        }
+	        
+							
+			if (bids.size() > 1) {
+				
+				if (max > (Float) catalogue.get(currentItem)) {
+
+					catalogue.put(currentItem, max);
+					System.out.println("New price: "+catalogue.get(currentItem));
+					leader = maxBidder;
+					bids.clear();
+					solicit();
+					
+				}
+				
 			}
-			return (step == 2);
 			
+			else if (bids.size() == 1) {
+				
+				System.out.println("book '" + currentItem +"' won by "+ maxBidder.getLocalName());
+
+				catalogue.remove(currentItem);
+				currentItem = null;
+				
+//				ACLMessage cfp = new ACLMessage(ACLMessage.INFORM);
+//	        	for (int i = 0; i < bidders.size(); i++) {
+//	        		cfp.addReceiver(bidders.get(i));
+//	        	}
+//	        	cfp.setContent(currentItem);
+//	        	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
+//				myAgent.send(cfp);
+
+				myAgent.addBehaviour(new ChooseBook());
+				myAgent.removeBehaviour(this);
+
+				
+			}
+			
+			else if (bids.size() == 0) {
+				
+				if (leader != null) {
+	
+					System.out.println("book '" + currentItem +"' won by "+ leader.getLocalName());
+				} else {
+					System.out.println("book '" + currentItem +"' cancelled");
+				}
+
+				
+				catalogue.remove(currentItem);
+				currentItem = null;
+				myAgent.addBehaviour(new ChooseBook());
+				myAgent.removeBehaviour(this);
+
+			}
+				
+
+				
 		}
 	}
 }

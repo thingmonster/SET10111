@@ -21,7 +21,7 @@ import java.io.IOException;
 
 public class AuctioneerAgent extends Agent {
 
-	private Hashtable<String, Float> catalogue = new Hashtable();
+	private ArrayList<Component> catalogue = new ArrayList();
 	private List<AID> bidders = new ArrayList();
 	private AuctioneerGui gui;
 	private String currentItem = null;
@@ -54,10 +54,17 @@ public class AuctioneerAgent extends Agent {
 		addBehaviour(new LoadCSV());
 		addBehaviour(new RegistrationServer());
 		addBehaviour(new BidServer());
-		addBehaviour(new ChooseBook());
+		addBehaviour(new Pause(this, 3000));
 	}
 	
 	protected void takeDown() {
+		
+
+		ACLMessage cancel = new ACLMessage(ACLMessage.CANCEL);
+    	for (int i = 0; i < bidders.size(); i++) {
+    		cancel.addReceiver(bidders.get(i));
+    	}
+		this.send(cancel);
 		
 		try {
 			DFService.deregister(this);
@@ -78,20 +85,24 @@ public class AuctioneerAgent extends Agent {
 		
 		public void action() {
 
-	        String csvFile = "src/edu/resources/catalogue.csv";
+	        String csvFile = "src/edu/resources/components.csv";
 	        BufferedReader br = null;
 	        String line = "";
 	        String cvsSplitBy = ",";
+	        boolean headings = true;
 
 	        try {
 
 	            br = new BufferedReader(new FileReader(csvFile));
 	            while ((line = br.readLine()) != null) {
 
-	                // use comma as separator
-	                String[] book = line.split(cvsSplitBy);
-	                catalogue.put(book[0], Float.parseFloat(book[1]));
-
+	            	if (!headings) {
+		                String[] book = line.split(cvsSplitBy);
+		                Component c = new Component(book[1], Float.parseFloat(book[2]));
+		                catalogue.add(c);
+	            	} else {
+	            		headings = false;
+	            	}
 	            }
 
 	        } catch (FileNotFoundException e) {
@@ -147,16 +158,14 @@ public class AuctioneerAgent extends Agent {
 	private class ChooseBook extends OneShotBehaviour {
 		public void action() {
 
-			Set<String> keys = catalogue.keySet();
-	        for(String key: keys){	        	    			
-    			currentItem = key;
-    			System.out.println("Auction Starting for "+currentItem);
-    			break;
-	        }
-	        
-	        if (currentItem != null) { 
-	        	addBehaviour(new Auction(myAgent, 10000));
+			if (catalogue.size() > 0) {
+					
+				currentItem = catalogue.get(0).getName();
+	    		System.out.println("Auction Starting for "+currentItem);	    		
+		        addBehaviour(new Auction(myAgent, 1500));
+		        
 	        } else {
+	        	
 	        	System.out.println("Auction Finished");
 	        	myAgent.doDelete();
 	        }
@@ -177,7 +186,7 @@ public class AuctioneerAgent extends Agent {
 			msg = myAgent.receive(mt);
 			if (msg != null) {
 
-				System.out.println("Bid received from " + msg.getSender().getLocalName());
+//				System.out.println("Bid received from " + msg.getSender().getLocalName());
 				Float bid = Float.parseFloat(msg.getContent());
 				bids.put(msg.getSender(), bid);
 
@@ -220,7 +229,7 @@ public class AuctioneerAgent extends Agent {
         	for (int i = 0; i < bidders.size(); i++) {
         		cfp.addReceiver(bidders.get(i));
         	}
-        	cfp.setContent(Float.toString(catalogue.get(currentItem)));
+        	cfp.setContent(Float.toString(catalogue.get(0).getPrice()));
         	cfp.setConversationId(currentItem);
         	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
 			myAgent.send(cfp);
@@ -241,10 +250,10 @@ public class AuctioneerAgent extends Agent {
 							
 			if (bids.size() > 1) {
 				
-				if (max > (Float) catalogue.get(currentItem)) {
+				if (max > (Float) catalogue.get(0).getPrice()) {
 
-					catalogue.put(currentItem, max);
-					System.out.println("New price: "+catalogue.get(currentItem));
+					catalogue.get(0).setPrice(max);
+					System.out.println("New price: "+max);
 					leader = maxBidder;
 					bids.clear();
 					solicit();
@@ -256,17 +265,15 @@ public class AuctioneerAgent extends Agent {
 			else if (bids.size() == 1) {
 				
 				System.out.println("book '" + currentItem +"' won by "+ maxBidder.getLocalName());
-
-				catalogue.remove(currentItem);
-				currentItem = null;
 				
-//				ACLMessage cfp = new ACLMessage(ACLMessage.INFORM);
-//	        	for (int i = 0; i < bidders.size(); i++) {
-//	        		cfp.addReceiver(bidders.get(i));
-//	        	}
-//	        	cfp.setContent(currentItem);
-//	        	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
-//				myAgent.send(cfp);
+				ACLMessage cfp = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+	        	cfp.addReceiver(maxBidder);
+	        	cfp.setContent(currentItem);
+	        	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
+				myAgent.send(cfp);
+
+				catalogue.remove(0);
+				currentItem = null;
 
 				myAgent.addBehaviour(new ChooseBook());
 				myAgent.removeBehaviour(this);
@@ -278,13 +285,21 @@ public class AuctioneerAgent extends Agent {
 				
 				if (leader != null) {
 	
-					System.out.println("book '" + currentItem +"' won by "+ leader.getLocalName());
+					System.out.println("Component '" + currentItem +"' won by "+ leader.getLocalName());
+
+					ACLMessage cfp = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+		        	cfp.addReceiver(leader);
+		        	cfp.setContent(currentItem);
+		        	cfp.setReplyWith("request"+System.currentTimeMillis()); // Unique value
+					myAgent.send(cfp);
+
+
 				} else {
 					System.out.println("book '" + currentItem +"' cancelled");
 				}
 
 				
-				catalogue.remove(currentItem);
+				catalogue.remove(0);
 				currentItem = null;
 				myAgent.addBehaviour(new ChooseBook());
 				myAgent.removeBehaviour(this);

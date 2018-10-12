@@ -18,9 +18,14 @@ public class BidderAgent extends Agent {
 	
 	private Hashtable<String, Float> shoppingList = new Hashtable<String, Float>();
 	private AID auctioneer;
-	private BidderGui gui;
 	private String currentItem;
-	
+	private Float currentStartingPrice;
+	private Float currentAmount;
+	private Float budget = (float) 1000;
+	private int PCs = 0;
+	private ArrayList<String> basket = new ArrayList<String>();
+	Random rand = new Random();
+
 	protected void setup() {
 
 		Object[] args = getArguments();
@@ -28,9 +33,6 @@ public class BidderAgent extends Agent {
 			shoppingList = (Hashtable<String, Float>) args[0];
 		}
 		
-		gui = new BidderGui(this);
-		gui.showGui();
-
 		System.out.println(shoppingList.toString());
 
 		addBehaviour(new TickerBehaviour(this, 1000) {
@@ -49,6 +51,8 @@ public class BidderAgent extends Agent {
 						addBehaviour(new Register());
 						addBehaviour(new InformServer());
 						addBehaviour(new CFPServer());
+						addBehaviour(new TransactionServer());
+						addBehaviour(new FinishServer());
 						removeBehaviour(this);
 					}
 				}
@@ -61,13 +65,8 @@ public class BidderAgent extends Agent {
 
 	}
 	
-	protected void buyBook(String title, Float budget) {
-		shoppingList.put(title, budget);
-	}
-
 	protected void takeDown() {
 
-		gui.dispose();
 		System.out.println("Bidder agent "+getAID().getName()+" terminating.");
 	}
 	
@@ -94,13 +93,10 @@ public class BidderAgent extends Agent {
 			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
 			ACLMessage msg = myAgent.receive(mt);
 			if (msg != null) {
-				if (shoppingList.containsKey(msg.getContent())) {
-					currentItem = msg.getContent();
-				} else {
-					currentItem = null;
-				}
-			}
-			else {
+				currentItem = msg.getContent();
+				System.out.println(myAgent.getLocalName() + " - "+Integer.toString(PCs) + " - £"+Float.toString(budget)+" "+basket.toString());
+				
+			} else {
 				block();
 			}
 		}
@@ -109,40 +105,85 @@ public class BidderAgent extends Agent {
 	private class CFPServer extends CyclicBehaviour {
 		public void action() {
 			
-			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);
+			MessageTemplate mt = MessageTemplate.and(MessageTemplate.MatchConversationId(currentItem),
+					MessageTemplate.MatchPerformative(ACLMessage.CFP));
+			
 			ACLMessage msg = myAgent.receive(mt);
 			if (msg != null) {
 
 				Float price = Float.parseFloat(msg.getContent());
 				
-				if ((currentItem != null) && (shoppingList.containsKey(currentItem))) {
-						
-					Float bid = null;
+				if (currentStartingPrice == null) {
+					currentStartingPrice = price;
+				}
+
+				if (budget > price + 1) {
+
 					String message = null;
+					int state = 0;
+					boolean bid = true;
+					Set<String> parts;
 					
-					if (price < shoppingList.get(currentItem)) {
-						bid = price + 1;
-						if (bid > shoppingList.get(currentItem)) {
-							bid = shoppingList.get(currentItem);
+					if (basket != null) {
+						parts = new HashSet<String>(basket);
+					} else {
+						parts = new HashSet<String>();
+					}
+						
+					
+					if (Collections.frequency(basket, currentItem) > 1) {
+						
+						bid = false;
+						
+					} else if (parts.contains(currentItem)) {
+						
+						if ((price > currentStartingPrice * 1.2) || (budget < (price + 1) * 10)) {
+							bid = false;
 						}
-						if (bid > price) {
-							message = Float.toString(bid);
+						
+					} else if (parts.size() > 6) {
+
+						if ((price > currentStartingPrice * 2) || (budget < price + 1)) {
+							bid = false;
+						}
+						
+					} else if (parts.size() > 4) {
+
+						if ((price > currentStartingPrice * 1.5) || (budget < (price + 1) * 1.5)) {
+							bid = false;
+						}
+					} else {
+
+						if ((price > currentStartingPrice * 1.3) || (budget < (price + 1) * 5)) {
+							bid = false;
 						}
 					}
 					
-					if (message != null) {
+					if (bid) {
+
+						int raise = rand.nextInt(5) + 1;
+						
+						Float amount = price + raise;
+						if (amount > budget) {
+							amount = budget;
+						}
+						
+						currentAmount = amount;
 						
 						ACLMessage reply = msg.createReply();
-						System.out.println(myAgent.getLocalName() + " placed a bid on " + currentItem + " for £"+message);
+						System.out.println(myAgent.getLocalName() + " placed a bid on " + currentItem + " for £"+amount);
 						reply.setPerformative(ACLMessage.PROPOSE);
-						reply.setContent(message);
+						reply.setContent(Float.toString(amount));
 						reply.setConversationId(currentItem);
 						myAgent.send(reply);
+						
 					} else {
 						currentItem = null;
+						currentStartingPrice = null;
 					}
 				} else {
 					currentItem = null;
+					currentStartingPrice = null;
 				}
 			}
 			else {
@@ -158,9 +199,38 @@ public class BidderAgent extends Agent {
 			ACLMessage msg = myAgent.receive(mt);
 			if (msg != null) {
 
-				String title = msg.getContent();
-				shoppingList.remove(title);
-				System.out.println(myAgent.getLocalName() + " has bought " + title);
+				String component = msg.getContent();
+				basket.add(component);
+				budget -= currentAmount;
+				currentAmount = null;
+				
+				Set<String> parts = new HashSet<String>(basket);
+				if (parts.size() == 8) {
+					for(String c : parts) {
+						int i = basket.indexOf(c);
+						basket.remove(i);
+					}
+					PCs++;
+				}
+								
+			}
+			else {
+				block();
+			}
+		}
+	}
+
+	private class FinishServer extends CyclicBehaviour {
+		public void action() {
+
+			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CANCEL);
+			ACLMessage msg = myAgent.receive(mt);
+			if (msg != null) {
+
+				Float cost = (1000 - budget) / PCs;
+				System.out.println(myAgent.getLocalName() + " - "+Integer.toString(PCs) + " - £"+Float.toString(budget)+" "+basket.toString());
+				System.out.println(myAgent.getLocalName()+" bought "+PCs+" PCs at £"+cost);
+								
 			}
 			else {
 				block();
